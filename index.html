@@ -77,7 +77,10 @@
             row.innerHTML = `
                 <td>${index + 1}</td>
                 <td>${item.text}</td>
-                <td><button onclick="removeItem(${index})">Remove</button></td>
+                <td>
+                    <button onclick="removeItem(${index})">Remove</button>
+                    <button onclick="editItem(${index})">Edit</button>
+                </td>
             `;
             listBody.appendChild(row);
         });
@@ -97,6 +100,14 @@
     function removeItem(index) {
         items.splice(index, 1);
         renderList();
+    }
+
+    function editItem(index) {
+        const newText = prompt("Edit your item:", items[index].text);
+        if (newText !== null && newText.trim() !== '') {
+            items[index].text = newText.trim();
+            renderList();
+        }
     }
 </script>
 

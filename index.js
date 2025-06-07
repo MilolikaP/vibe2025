@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
 
-const PORT = 3000;
+const PORT = 3001;
 
 // Database connection settings
 const dbConfig = {
@@ -36,6 +36,19 @@ const dbConfig = {
     }
   }
 
+//Функция обновления записи в БД
+async function updateItem(id, newText) {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        const query = 'UPDATE items SET text = ? WHERE id = ?';
+        await connection.execute(query, [newText, id]);
+        await connection.end();
+    } catch (error) {
+        console.error('Error updating item:', error);
+        throw error;
+    }
+}
+
 // Stub function for generating HTML rows
 async function getHtmlRows() {
     // Example data - replace with actual DB data later
@@ -58,17 +71,13 @@ async function getHtmlRows() {
 }
 
 // Modified request handler with template replacement
+const { parse } = require('querystring');
+
 async function handleRequest(req, res) {
-    if (req.url === '/') {
+    if (req.method === 'GET' && req.url === '/') {
         try {
-            const html = await fs.promises.readFile(
-                path.join(__dirname, 'index.html'), 
-                'utf8'
-            );
-            
-            // Replace template placeholder with actual content
+            const html = await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8');
             const processedHtml = html.replace('{{rows}}', await getHtmlRows());
-            
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(processedHtml);
         } catch (err) {
@@ -76,11 +85,28 @@ async function handleRequest(req, res) {
             res.writeHead(500, { 'Content-Type': 'text/plain' });
             res.end('Error loading index.html');
         }
+
+    } else if (req.method === 'POST' && req.url === '/edit') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            const { id, text } = JSON.parse(body);
+            try {
+                await updateItem(id, text);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true }));
+            } catch (error) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false }));
+            }
+        });
+
     } else {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Route not found');
     }
 }
+
 
 // Create and start server
 const server = http.createServer(handleRequest);
